@@ -1,0 +1,21 @@
+name: Lembretes da agenda (WhatsApp)
+
+on:
+  schedule:
+    # 11:00 UTC = 08:00 no horário de Brasília (UTC-3, sem horário de verão)
+    - cron: '0 11 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Enviar lembretes pendentes
+        env:
+          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+        run: node scripts/send-reminders.mjs
