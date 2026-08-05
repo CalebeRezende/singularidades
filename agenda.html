@@ -124,10 +124,11 @@
       <textarea id="input-obs" placeholder="Endereço, link, detalhes..."></textarea>
     </div>
     <div class="btn-row">
-      <button class="btn btn-primary" id="btn-add" onclick="addEvent()">
+      <button class="btn btn-primary" id="btn-add" onclick="saveEvent()">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Adicionar evento
       </button>
+      <button class="btn hidden" id="btn-cancel-edit" onclick="cancelEdit()">Cancelar edição</button>
     </div>
     <div class="error-msg" id="form-error">Preencha ao menos o título e a data.</div>
   </div>
@@ -219,7 +220,10 @@ function renderEvents(events) {
         <div class="event-meta">${e.data.split('-').reverse().join('/')}${e.hora ? ' às ' + e.hora : ''}</div>
         ${e.obs ? `<div class="event-desc">${escapeHtml(e.obs)}</div>` : ''}
       </div>
-      <div class="event-actions">
+      <div class="event-actions" style="display:flex;gap:2px;">
+        <button class="icon-btn" onclick="editEvent(${e.id})" title="Editar">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
         <button class="icon-btn" onclick="removeEvent(${e.id})" title="Excluir">
           <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
@@ -232,7 +236,52 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-async function addEvent() {
+let editingId = null;
+
+function clearForm() {
+  document.getElementById('input-titulo').value = '';
+  document.getElementById('input-data').value = '';
+  document.getElementById('input-hora').value = '';
+  document.getElementById('input-obs').value = '';
+}
+
+function setFormMode(editing) {
+  const btn = document.getElementById('btn-add');
+  const cancelBtn = document.getElementById('btn-cancel-edit');
+  if (editing) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Salvar alterações';
+    cancelBtn.classList.remove('hidden');
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar evento';
+    cancelBtn.classList.add('hidden');
+  }
+}
+
+async function editEvent(id) {
+  try {
+    const events = await fetchEvents();
+    const ev = events.find(e => e.id === id);
+    if (!ev) return;
+    editingId = id;
+    document.getElementById('input-titulo').value = ev.titulo;
+    document.getElementById('input-data').value = ev.data;
+    document.getElementById('input-hora').value = ev.hora || '';
+    document.getElementById('input-obs').value = ev.obs || '';
+    setFormMode(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    alert('Erro ao carregar o evento para edição.');
+  }
+}
+
+function cancelEdit() {
+  editingId = null;
+  clearForm();
+  setFormMode(false);
+  document.getElementById('form-error').style.display = 'none';
+}
+
+async function saveEvent() {
   const titulo = document.getElementById('input-titulo').value.trim();
   const data = document.getElementById('input-data').value;
   const hora = document.getElementById('input-hora').value;
@@ -247,19 +296,26 @@ async function addEvent() {
 
   try {
     const events = await fetchEvents();
-    events.push({ id: Date.now(), titulo, data, hora, obs, lembreteEnviado: false });
+    if (editingId !== null) {
+      const idx = events.findIndex(e => e.id === editingId);
+      if (idx !== -1) {
+        const dataMudou = events[idx].data !== data;
+        events[idx] = { ...events[idx], titulo, data, hora, obs, lembreteEnviado: dataMudou ? false : events[idx].lembreteEnviado };
+      }
+    } else {
+      events.push({ id: Date.now(), titulo, data, hora, obs, lembreteEnviado: false });
+    }
     await saveEvents(events);
-    document.getElementById('input-titulo').value = '';
-    document.getElementById('input-data').value = '';
-    document.getElementById('input-hora').value = '';
-    document.getElementById('input-obs').value = '';
+    editingId = null;
+    clearForm();
+    setFormMode(false);
     renderEvents(events);
   } catch (e) {
     errEl.textContent = 'Erro ao salvar o evento. Tente novamente.';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar evento';
+    setFormMode(editingId !== null);
   }
 }
 
