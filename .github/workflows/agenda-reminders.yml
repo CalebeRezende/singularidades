@@ -2,9 +2,17 @@ name: Lembretes da agenda (WhatsApp)
 
 on:
   schedule:
-    # 11:00 UTC = 08:00 no horário de Brasília (UTC-3, sem horário de verão)
+    # 21:00 UTC = 18:00 em Brasília -> aviso da véspera (evento de amanhã)
+    - cron: '0 21 * * *'
+    # 11:00 UTC = 08:00 em Brasília -> aviso do dia (evento de hoje)
     - cron: '0 11 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Modo do lembrete'
+        type: choice
+        options: ['antes', 'hoje']
+        default: 'antes'
 
 jobs:
   send-reminders:
@@ -14,8 +22,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Definir modo do lembrete
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 11 * * *" ]; then
+            echo "value=hoje" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=antes" >> "$GITHUB_OUTPUT"
+          fi
       - name: Enviar lembretes pendentes
         env:
           CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+          REMINDER_MODE: ${{ steps.mode.outputs.value }}
         run: node scripts/send-reminders.mjs

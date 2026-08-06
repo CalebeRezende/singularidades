@@ -1,5 +1,7 @@
-// Envia lembretes por WhatsApp (via CallMeBot) para eventos da agenda que
-// acontecem amanhã. Lido pelo workflow .github/workflows/agenda-reminders.yml.
+// Envia lembretes por WhatsApp (via CallMeBot) para eventos da agenda.
+// Roda em dois horários (ver .github/workflows/agenda-reminders.yml):
+//   - modo "antes": à noite, avisa sobre os eventos de amanhã.
+//   - modo "hoje":  de manhã, avisa sobre os eventos de hoje.
 
 const JSONBIN_BIN_ID = '6a7379b0da38895dfebe0814';
 const JSONBIN_API_KEY = '$2a$10$27rhUeaoctLDffTbCTjq7OjFhxqxihlBKPnf5UKFpy1FBs7BrHXW.';
@@ -7,6 +9,7 @@ const API_BASE = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 const CALLMEBOT_PHONE = process.env.CALLMEBOT_PHONE;
 const CALLMEBOT_APIKEY = process.env.CALLMEBOT_APIKEY;
+const MODE = process.env.REMINDER_MODE === 'hoje' ? 'hoje' : 'antes';
 
 if (!CALLMEBOT_PHONE || !CALLMEBOT_APIKEY) {
   console.error('CALLMEBOT_PHONE e CALLMEBOT_APIKEY precisam estar configurados como secrets do repositório.');
@@ -39,13 +42,21 @@ async function saveEvents(events) {
   if (!res.ok) throw new Error(`Falha ao salvar o JSONBin: ${res.status}`);
 }
 
+// Compatibilidade com eventos antigos que só tinham o campo "lembreteEnviado"
+// (equivalente ao lembrete "antes" enviado).
+function jaEnviado(e) {
+  if (MODE === 'hoje') return !!e.lembreteHojeEnviado;
+  return e.lembreteAntesEnviado !== undefined ? !!e.lembreteAntesEnviado : !!e.lembreteEnviado;
+}
+
 function buildMessage(events, dateLabel) {
+  const quando = MODE === 'hoje' ? `hoje (${dateLabel})` : `amanhã (${dateLabel})`;
   const linhas = events.map(e => {
     const hora = e.hora ? `${e.hora} - ` : '';
     const obs = e.obs ? `\n  ${e.obs}` : '';
     return `• ${hora}${e.titulo}${obs}`;
   });
-  return `🔔 Lembrete: amanhã (${dateLabel}) você tem:\n\n${linhas.join('\n')}`;
+  return `🔔 Lembrete: ${quando} você tem:\n\n${linhas.join('\n')}`;
 }
 
 async function sendWhatsapp(text) {
@@ -57,24 +68,25 @@ async function sendWhatsapp(text) {
 }
 
 async function main() {
-  const tomorrow = spDateString(1);
+  const targetDate = spDateString(MODE === 'hoje' ? 0 : 1);
+  const flagKey = MODE === 'hoje' ? 'lembreteHojeEnviado' : 'lembreteAntesEnviado';
   const events = await fetchEvents();
-  const due = events.filter(e => e.data === tomorrow && !e.lembreteEnviado);
+  const due = events.filter(e => e.data === targetDate && !jaEnviado(e));
 
   if (!due.length) {
-    console.log(`Nenhum lembrete pendente para ${tomorrow}.`);
+    console.log(`[modo ${MODE}] Nenhum lembrete pendente para ${targetDate}.`);
     return;
   }
 
-  const [y, m, d] = tomorrow.split('-');
+  const [y, m, d] = targetDate.split('-');
   const message = buildMessage(due, `${d}/${m}`);
   await sendWhatsapp(message);
 
   const dueIds = new Set(due.map(e => e.id));
-  const updated = events.map(e => dueIds.has(e.id) ? { ...e, lembreteEnviado: true } : e);
+  const updated = events.map(e => dueIds.has(e.id) ? { ...e, [flagKey]: true } : e);
   await saveEvents(updated);
 
-  console.log(`Lembrete enviado para ${due.length} evento(s) de ${tomorrow}.`);
+  console.log(`[modo ${MODE}] Lembrete enviado para ${due.length} evento(s) de ${targetDate}.`);
 }
 
 main().catch(err => {

@@ -137,7 +137,7 @@
   <div id="events-list"><div class="empty-state">Carregando...</div></div>
 
   <div class="hint-box">
-    O lembrete é enviado automaticamente todo dia, um dia antes de cada evento, via WhatsApp (CallMeBot). O envio é feito por um workflow agendado no GitHub Actions deste repositório.
+    Você recebe 2 lembretes por WhatsApp (CallMeBot): às 18h da véspera e às 8h do dia do evento. O envio é feito por um workflow agendado no GitHub Actions deste repositório.
   </div>
 </div>
 
@@ -300,10 +300,14 @@ async function saveEvent() {
       const idx = events.findIndex(e => e.id === editingId);
       if (idx !== -1) {
         const dataMudou = events[idx].data !== data;
-        events[idx] = { ...events[idx], titulo, data, hora, obs, lembreteEnviado: dataMudou ? false : events[idx].lembreteEnviado };
+        events[idx] = {
+          ...events[idx], titulo, data, hora, obs,
+          lembreteAntesEnviado: dataMudou ? false : (events[idx].lembreteAntesEnviado ?? !!events[idx].lembreteEnviado),
+          lembreteHojeEnviado: dataMudou ? false : !!events[idx].lembreteHojeEnviado,
+        };
       }
     } else {
-      events.push({ id: Date.now(), titulo, data, hora, obs, lembreteEnviado: false });
+      events.push({ id: Date.now(), titulo, data, hora, obs, lembreteAntesEnviado: false, lembreteHojeEnviado: false });
     }
     await saveEvents(events);
     editingId = null;
