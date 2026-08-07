@@ -1,0 +1,25 @@
+name: Deploy webhook do WhatsApp (Cloudflare Workers)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webhook/**'
+      - '.github/workflows/deploy-webhook.yml'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: webhook
+          secrets: |
+            ALLOWED_PHONE
+        env:
+          ALLOWED_PHONE: ${{ secrets.ALLOWED_PHONE }}
