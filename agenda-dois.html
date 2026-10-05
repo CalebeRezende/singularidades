@@ -172,7 +172,7 @@ const HEADERS  = { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_A
 function checkLogin() {
   const v = document.getElementById('agenda-pwd').value;
   if (v === AGENDA_PASSWORD) {
-    sessionStorage.setItem('agenda-emanuelly-auth', '1');
+    sessionStorage.setItem('agenda-dois-auth', '1');
     showApp();
   } else {
     document.getElementById('login-error').style.display = 'block';
@@ -180,7 +180,7 @@ function checkLogin() {
 }
 
 function logout() {
-  sessionStorage.removeItem('agenda-emanuelly-auth');
+  sessionStorage.removeItem('agenda-dois-auth');
   document.getElementById('screen-app').classList.add('hidden');
   document.getElementById('btn-logout').classList.add('hidden');
   document.getElementById('screen-login').classList.remove('hidden');
@@ -194,7 +194,7 @@ function showApp() {
   loadEvents();
 }
 
-if (sessionStorage.getItem('agenda-emanuelly-auth') === '1') showApp();
+if (sessionStorage.getItem('agenda-dois-auth') === '1') showApp();
 
 async function fetchEvents() {
   const res = await fetch(API_BASE + '/latest', { headers: { 'X-Master-Key': JSONBIN_API_KEY } });
