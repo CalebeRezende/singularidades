@@ -123,6 +123,21 @@
       <label class="field-label">Local / observações (opcional)</label>
       <textarea id="input-obs" placeholder="Endereço, link, detalhes..."></textarea>
     </div>
+    <div class="field">
+      <label class="field-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="input-repete" style="width:auto;" onchange="toggleRepeticao()"> Repetir todo dia (ex: remédio)
+      </label>
+    </div>
+    <div class="row-2 hidden" id="bloco-repeticao">
+      <div class="field">
+        <label class="field-label">Repetir até</label>
+        <input type="date" id="input-repete-ate">
+      </div>
+      <div class="field">
+        <label class="field-label">Horário do lembrete</label>
+        <input type="time" id="input-hora-lembrete">
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-primary" id="btn-add" onclick="saveEvent()">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -137,7 +152,8 @@
   <div id="events-list"><div class="empty-state">Carregando...</div></div>
 
   <div class="hint-box">
-    Você recebe 2 lembretes por WhatsApp (CallMeBot): às 16h30 da véspera e às 6h30 do dia do evento. O envio é feito por um workflow agendado no GitHub Actions deste repositório — o horário exato pode variar alguns minutos por causa de fila do GitHub.
+    Eventos normais recebem 2 lembretes por WhatsApp: às 16h30 da véspera e às 6h30 do dia do evento.<br>
+    Eventos marcados como "repetir todo dia" (ex: remédio) não entram nesse aviso duplo — em vez disso, você recebe um lembrete único todo dia, no horário escolhido, enquanto durar o período. O envio é feito por workflows agendados no GitHub Actions deste repositório — o horário exato pode variar alguns minutos por causa de fila do GitHub.
   </div>
 </div>
 
@@ -206,18 +222,23 @@ const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov'
 function renderEvents(events) {
   const list = document.getElementById('events-list');
   const todayStr = new Date().toISOString().slice(0,10);
-  const upcoming = events.filter(e => e.data >= todayStr).sort((a,b) => (a.data + (a.hora||'')).localeCompare(b.data + (b.hora||'')));
+  const upcoming = events
+    .filter(e => e.repetirAteData ? e.repetirAteData >= todayStr : e.data >= todayStr)
+    .sort((a,b) => (a.data + (a.hora||'')).localeCompare(b.data + (b.hora||'')));
   if (!upcoming.length) {
     list.innerHTML = '<div class="empty-state">Nenhum evento futuro cadastrado ainda.</div>';
     return;
   }
   list.innerHTML = upcoming.map(e => {
     const [y,m,d] = e.data.split('-');
+    const periodo = e.repetirAteData
+      ? `${e.data.split('-').reverse().join('/')} a ${e.repetirAteData.split('-').reverse().join('/')}${e.horaLembrete ? ' · lembrete diário às ' + e.horaLembrete : ''}`
+      : `${e.data.split('-').reverse().join('/')}${e.hora ? ' às ' + e.hora : ''}`;
     return `<div class="event-card">
       <div class="event-date"><div class="d">${d}</div><div class="m">${MESES[parseInt(m,10)-1]}</div></div>
       <div class="event-body">
-        <div class="event-title">${escapeHtml(e.titulo)}</div>
-        <div class="event-meta">${e.data.split('-').reverse().join('/')}${e.hora ? ' às ' + e.hora : ''}</div>
+        <div class="event-title">${e.repetirAteData ? '🔁 ' : ''}${escapeHtml(e.titulo)}</div>
+        <div class="event-meta">${periodo}</div>
         ${e.obs ? `<div class="event-desc">${escapeHtml(e.obs)}</div>` : ''}
       </div>
       <div class="event-actions" style="display:flex;gap:2px;">
@@ -238,11 +259,19 @@ function escapeHtml(s) {
 
 let editingId = null;
 
+function toggleRepeticao() {
+  document.getElementById('bloco-repeticao').classList.toggle('hidden', !document.getElementById('input-repete').checked);
+}
+
 function clearForm() {
   document.getElementById('input-titulo').value = '';
   document.getElementById('input-data').value = '';
   document.getElementById('input-hora').value = '';
   document.getElementById('input-obs').value = '';
+  document.getElementById('input-repete').checked = false;
+  document.getElementById('input-repete-ate').value = '';
+  document.getElementById('input-hora-lembrete').value = '';
+  document.getElementById('bloco-repeticao').classList.add('hidden');
 }
 
 function setFormMode(editing) {
@@ -267,6 +296,10 @@ async function editEvent(id) {
     document.getElementById('input-data').value = ev.data;
     document.getElementById('input-hora').value = ev.hora || '';
     document.getElementById('input-obs').value = ev.obs || '';
+    document.getElementById('input-repete').checked = !!ev.repetirAteData;
+    document.getElementById('input-repete-ate').value = ev.repetirAteData || '';
+    document.getElementById('input-hora-lembrete').value = ev.horaLembrete || '';
+    toggleRepeticao();
     setFormMode(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
@@ -286,8 +319,11 @@ async function saveEvent() {
   const data = document.getElementById('input-data').value;
   const hora = document.getElementById('input-hora').value;
   const obs = document.getElementById('input-obs').value.trim();
+  const repete = document.getElementById('input-repete').checked;
+  const repetirAteData = repete ? document.getElementById('input-repete-ate').value : '';
+  const horaLembrete = repete ? document.getElementById('input-hora-lembrete').value : '';
   const errEl = document.getElementById('form-error');
-  if (!titulo || !data) { errEl.style.display = 'block'; return; }
+  if (!titulo || !data || (repete && !repetirAteData)) { errEl.style.display = 'block'; return; }
   errEl.style.display = 'none';
 
   const btn = document.getElementById('btn-add');
@@ -299,15 +335,23 @@ async function saveEvent() {
     if (editingId !== null) {
       const idx = events.findIndex(e => e.id === editingId);
       if (idx !== -1) {
-        const dataMudou = events[idx].data !== data;
+        const anterior = events[idx];
+        const periodoMudou = anterior.data !== data || anterior.repetirAteData !== repetirAteData || anterior.horaLembrete !== horaLembrete;
         events[idx] = {
-          ...events[idx], titulo, data, hora, obs,
-          lembreteAntesEnviado: dataMudou ? false : (events[idx].lembreteAntesEnviado ?? !!events[idx].lembreteEnviado),
-          lembreteHojeEnviado: dataMudou ? false : !!events[idx].lembreteHojeEnviado,
+          ...anterior, titulo, data, hora, obs, repetirAteData, horaLembrete,
+          lembreteAntesEnviado: periodoMudou ? false : (anterior.lembreteAntesEnviado ?? !!anterior.lembreteEnviado),
+          lembreteHojeEnviado: periodoMudou ? false : !!anterior.lembreteHojeEnviado,
+          diasAntesEnviados: periodoMudou ? [] : (anterior.diasAntesEnviados || []),
+          diasHojeEnviados: periodoMudou ? [] : (anterior.diasHojeEnviados || []),
+          diasExatoEnviados: periodoMudou ? [] : (anterior.diasExatoEnviados || []),
         };
       }
     } else {
-      events.push({ id: Date.now(), titulo, data, hora, obs, lembreteAntesEnviado: false, lembreteHojeEnviado: false });
+      events.push({
+        id: Date.now(), titulo, data, hora, obs, repetirAteData, horaLembrete,
+        lembreteAntesEnviado: false, lembreteHojeEnviado: false,
+        diasAntesEnviados: [], diasHojeEnviados: [], diasExatoEnviados: [],
+      });
     }
     await saveEvents(events);
     editingId = null;
