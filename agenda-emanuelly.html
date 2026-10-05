@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda da Emanuelly — Singularidades</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple-50: #EEEDFE; --purple-100: #CECBF6; --purple-600: #534AB7; --purple-800: #3C3489; --purple-900: #26215C;
+    --teal-50: #E1F5EE; --teal-600: #0F6E56; --teal-400: #1D9E75;
+    --gray-50: #F7F6F3; --gray-100: #EEECE6; --gray-200: #D6D3CA; --gray-400: #9B9890; --gray-600: #5C5A55; --gray-900: #1C1B18;
+    --bg: #FAFAF8; --surface: #FFFFFF; --border: rgba(0,0,0,0.09); --border-md: rgba(0,0,0,0.15);
+    --text: #1C1B18; --muted: #5C5A55; --hint: #9B9890;
+    --radius: 10px; --radius-lg: 14px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.6; }
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+  .nav-logo-icon { width: 34px; height: 34px; background: var(--purple-800); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .nav-logo-icon svg { width: 18px; height: 18px; fill: none; stroke: white; stroke-width: 2; }
+  .nav-title { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--purple-900); letter-spacing: -0.3px; }
+  .nav-subtitle { font-size: 11px; color: var(--hint); margin-top: -2px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid var(--border-md); background: transparent; color: var(--text); font-family: 'DM Sans', sans-serif; transition: all 0.15s; white-space: nowrap; }
+  .btn:hover { background: var(--gray-100); }
+  .btn-primary { background: var(--purple-800); border-color: var(--purple-800); color: white; }
+  .btn-primary:hover { background: var(--purple-600); border-color: var(--purple-600); }
+  .btn-danger { color: #C0392B; border-color: #FADBD8; }
+  .btn-danger:hover { background: #FADBD8; }
+  .btn-sm { padding: 5px 12px; font-size: 13px; }
+  .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; flex-shrink: 0; }
+  .screen { max-width: 640px; margin: 0 auto; padding: 40px 24px 80px; }
+  .hidden { display: none !important; }
+  h1.page-title { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--purple-900); letter-spacing: -0.5px; margin-bottom: 6px; }
+  .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 16px; }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  label.field-label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+  input[type=text], input[type=date], input[type=time], input[type=password], textarea {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border-md); border-radius: var(--radius);
+    font-size: 14px; color: var(--text); background: var(--surface); font-family: 'DM Sans', sans-serif;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--purple-600); box-shadow: 0 0 0 3px rgba(83,74,183,0.12); }
+  textarea { resize: vertical; min-height: 70px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+  .error-msg { color: #C0392B; font-size: 13px; margin-top: 10px; padding: 8px 12px; background: #FADBD8; border-radius: var(--radius); display: none; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--hint); margin: 24px 0 12px; }
+  .event-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+  .event-date { flex-shrink: 0; width: 54px; text-align: center; background: var(--purple-50); border-radius: 10px; padding: 8px 4px; }
+  .event-date .d { font-size: 20px; font-weight: 600; color: var(--purple-800); line-height: 1; }
+  .event-date .m { font-size: 10px; text-transform: uppercase; color: var(--purple-600); letter-spacing: 0.04em; }
+  .event-body { flex: 1; min-width: 0; }
+  .event-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .event-meta { font-size: 12px; color: var(--hint); margin-top: 2px; }
+  .event-desc { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .event-actions { flex-shrink: 0; }
+  .icon-btn { background: none; border: none; cursor: pointer; color: var(--hint); padding: 4px; border-radius: 6px; }
+  .icon-btn:hover { color: #C0392B; background: #FADBD8; }
+  .icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--hint); font-size: 14px; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .login-wrap { max-width: 380px; margin: 60px auto; }
+  .login-wrap h2 { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--purple-900); margin-bottom: 6px; }
+  .login-wrap p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .hint-box { font-size: 12px; color: var(--hint); background: var(--gray-50); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-top: 16px; line-height: 1.6; }
+  @media (max-width: 480px) { nav { padding: 0 16px; } .screen { padding: 24px 16px 60px; } .row-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">
+    <div class="nav-logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
+    <div><div class="nav-title">Agenda da Emanuelly</div><div class="nav-subtitle">Lembretes por WhatsApp</div></div>
+  </a>
+  <button class="btn btn-sm hidden" id="btn-logout" onclick="logout()">Sair</button>
+</nav>
+
+<!-- LOGIN -->
+<div class="screen" id="screen-login">
+  <div class="login-wrap">
+    <h2>Acesso à agenda</h2>
+    <p>Área pessoal — digite a senha para ver e adicionar eventos.</p>
+    <div class="card">
+      <div class="field">
+        <label class="field-label">Senha</label>
+        <input type="password" id="agenda-pwd" placeholder="Digite a senha" onkeydown="if(event.key==='Enter')checkLogin()">
+        <div class="error-msg" id="login-error">Senha incorreta. Tente novamente.</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="checkLogin()">Entrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="screen hidden" id="screen-app">
+  <h1 class="page-title">Seus eventos</h1>
+  <p class="page-sub">Cadastre um evento e você receberá um lembrete no WhatsApp um dia antes.</p>
+
+  <div class="card">
+    <div class="field">
+      <label class="field-label">Título do evento</label>
+      <input type="text" id="input-titulo" placeholder="Ex: Consulta médica, Reunião, Aniversário...">
+    </div>
+    <div class="row-2">
+      <div class="field">
+        <label class="field-label">Data</label>
+        <input type="date" id="input-data">
+      </div>
+      <div class="field">
+        <label class="field-label">Hora (opcional)</label>
+        <input type="time" id="input-hora">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Local / observações (opcional)</label>
+      <textarea id="input-obs" placeholder="Endereço, link, detalhes..."></textarea>
+    </div>
+    <div class="field">
+      <label class="field-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="input-repete" style="width:auto;" onchange="toggleRepeticao()"> Repetir todo dia (ex: remédio)
+      </label>
+    </div>
+    <div class="row-2 hidden" id="bloco-repeticao">
+      <div class="field">
+        <label class="field-label">Repetir até</label>
+        <input type="date" id="input-repete-ate">
+      </div>
+      <div class="field">
+        <label class="field-label">Horário do lembrete</label>
+        <input type="time" id="input-hora-lembrete">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-add" onclick="saveEvent()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Adicionar evento
+      </button>
+      <button class="btn hidden" id="btn-cancel-edit" onclick="cancelEdit()">Cancelar edição</button>
+    </div>
+    <div class="error-msg" id="form-error">Preencha ao menos o título e a data.</div>
+  </div>
+
+  <div class="section-label">Próximos eventos</div>
+  <div id="events-list"><div class="empty-state">Carregando...</div></div>
+
+  <div class="hint-box">
+    Eventos normais recebem 2 lembretes por WhatsApp: às 16h30 da véspera e às 6h30 do dia do evento.<br>
+    Eventos marcados como "repetir todo dia" (ex: remédio) não entram nesse aviso duplo — em vez disso, você recebe um lembrete único todo dia, no horário escolhido, enquanto durar o período. O envio é feito por workflows agendados no GitHub Actions deste repositório — o horário exato pode variar alguns minutos por causa de fila do GitHub.
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO — bin dedicado da agenda no JSONBin.io
+// ============================================================
+const JSONBIN_BIN_ID  = '6ac39c41ac6210605a1572d0';
+const JSONBIN_API_KEY = '$2a$10$27rhUeaoctLDffTbCTjq7OjFhxqxihlBKPnf5UKFpy1FBs7BrHXW.';
+const AGENDA_PASSWORD = 'manu2026';
+// ============================================================
+
+const API_BASE = 'https://api.jsonbin.io/v3/b/' + JSONBIN_BIN_ID;
+const HEADERS  = { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY };
+
+function checkLogin() {
+  const v = document.getElementById('agenda-pwd').value;
+  if (v === AGENDA_PASSWORD) {
+    sessionStorage.setItem('agenda-emanuelly-auth', '1');
+    showApp();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('agenda-emanuelly-auth');
+  document.getElementById('screen-app').classList.add('hidden');
+  document.getElementById('btn-logout').classList.add('hidden');
+  document.getElementById('screen-login').classList.remove('hidden');
+  document.getElementById('agenda-pwd').value = '';
+}
+
+function showApp() {
+  document.getElementById('screen-login').classList.add('hidden');
+  document.getElementById('screen-app').classList.remove('hidden');
+  document.getElementById('btn-logout').classList.remove('hidden');
+  loadEvents();
+}
+
+if (sessionStorage.getItem('agenda-emanuelly-auth') === '1') showApp();
+
+async function fetchEvents() {
+  const res = await fetch(API_BASE + '/latest', { headers: { 'X-Master-Key': JSONBIN_API_KEY } });
+  const data = await res.json();
+  return (data.record && data.record.eventos) ? data.record.eventos : [];
+}
+
+async function saveEvents(list) {
+  const res = await fetch(API_BASE, { method: 'PUT', headers: HEADERS, body: JSON.stringify({ eventos: list }) });
+  if (!res.ok) throw new Error('Erro ao salvar');
+}
+
+async function loadEvents() {
+  document.getElementById('events-list').innerHTML = '<div class="empty-state">Carregando...</div>';
+  try {
+    const events = await fetchEvents();
+    renderEvents(events);
+  } catch (e) {
+    document.getElementById('events-list').innerHTML = '<div class="empty-state">Erro ao carregar eventos.</div>';
+  }
+}
+
+const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+function renderEvents(events) {
+  const list = document.getElementById('events-list');
+  const todayStr = new Date().toISOString().slice(0,10);
+  const upcoming = events
+    .filter(e => e.repetirAteData ? e.repetirAteData >= todayStr : e.data >= todayStr)
+    .sort((a,b) => (a.data + (a.hora||'')).localeCompare(b.data + (b.hora||'')));
+  if (!upcoming.length) {
+    list.innerHTML = '<div class="empty-state">Nenhum evento futuro cadastrado ainda.</div>';
+    return;
+  }
+  list.innerHTML = upcoming.map(e => {
+    const [y,m,d] = e.data.split('-');
+    const periodo = e.repetirAteData
+      ? `${e.data.split('-').reverse().join('/')} a ${e.repetirAteData.split('-').reverse().join('/')}${e.horaLembrete ? ' · lembrete diário às ' + e.horaLembrete : ''}`
+      : `${e.data.split('-').reverse().join('/')}${e.hora ? ' às ' + e.hora : ''}`;
+    return `<div class="event-card">
+      <div class="event-date"><div class="d">${d}</div><div class="m">${MESES[parseInt(m,10)-1]}</div></div>
+      <div class="event-body">
+        <div class="event-title">${e.repetirAteData ? '🔁 ' : ''}${escapeHtml(e.titulo)}</div>
+        <div class="event-meta">${periodo}</div>
+        ${e.obs ? `<div class="event-desc">${escapeHtml(e.obs)}</div>` : ''}
+      </div>
+      <div class="event-actions" style="display:flex;gap:2px;">
+        <button class="icon-btn" onclick="editEvent(${e.id})" title="Editar">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="icon-btn" onclick="removeEvent(${e.id})" title="Excluir">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let editingId = null;
+
+function toggleRepeticao() {
+  document.getElementById('bloco-repeticao').classList.toggle('hidden', !document.getElementById('input-repete').checked);
+}
+
+function clearForm() {
+  document.getElementById('input-titulo').value = '';
+  document.getElementById('input-data').value = '';
+  document.getElementById('input-hora').value = '';
+  document.getElementById('input-obs').value = '';
+  document.getElementById('input-repete').checked = false;
+  document.getElementById('input-repete-ate').value = '';
+  document.getElementById('input-hora-lembrete').value = '';
+  document.getElementById('bloco-repeticao').classList.add('hidden');
+}
+
+function setFormMode(editing) {
+  const btn = document.getElementById('btn-add');
+  const cancelBtn = document.getElementById('btn-cancel-edit');
+  if (editing) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Salvar alterações';
+    cancelBtn.classList.remove('hidden');
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar evento';
+    cancelBtn.classList.add('hidden');
+  }
+}
+
+async function editEvent(id) {
+  try {
+    const events = await fetchEvents();
+    const ev = events.find(e => e.id === id);
+    if (!ev) return;
+    editingId = id;
+    document.getElementById('input-titulo').value = ev.titulo;
+    document.getElementById('input-data').value = ev.data;
+    document.getElementById('input-hora').value = ev.hora || '';
+    document.getElementById('input-obs').value = ev.obs || '';
+    document.getElementById('input-repete').checked = !!ev.repetirAteData;
+    document.getElementById('input-repete-ate').value = ev.repetirAteData || '';
+    document.getElementById('input-hora-lembrete').value = ev.horaLembrete || '';
+    toggleRepeticao();
+    setFormMode(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    alert('Erro ao carregar o evento para edição.');
+  }
+}
+
+function cancelEdit() {
+  editingId = null;
+  clearForm();
+  setFormMode(false);
+  document.getElementById('form-error').style.display = 'none';
+}
+
+async function saveEvent() {
+  const titulo = document.getElementById('input-titulo').value.trim();
+  const data = document.getElementById('input-data').value;
+  const hora = document.getElementById('input-hora').value;
+  const obs = document.getElementById('input-obs').value.trim();
+  const repete = document.getElementById('input-repete').checked;
+  const repetirAteData = repete ? document.getElementById('input-repete-ate').value : '';
+  const horaLembrete = repete ? document.getElementById('input-hora-lembrete').value : '';
+  const errEl = document.getElementById('form-error');
+  if (!titulo || !data || (repete && !repetirAteData)) { errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('btn-add');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Salvando...';
+
+  try {
+    const events = await fetchEvents();
+    if (editingId !== null) {
+      const idx = events.findIndex(e => e.id === editingId);
+      if (idx !== -1) {
+        const anterior = events[idx];
+        const periodoMudou = anterior.data !== data || anterior.repetirAteData !== repetirAteData || anterior.horaLembrete !== horaLembrete;
+        events[idx] = {
+          ...anterior, titulo, data, hora, obs, repetirAteData, horaLembrete,
+          lembreteAntesEnviado: periodoMudou ? false : (anterior.lembreteAntesEnviado ?? !!anterior.lembreteEnviado),
+          lembreteHojeEnviado: periodoMudou ? false : !!anterior.lembreteHojeEnviado,
+          diasAntesEnviados: periodoMudou ? [] : (anterior.diasAntesEnviados || []),
+          diasHojeEnviados: periodoMudou ? [] : (anterior.diasHojeEnviados || []),
+          diasExatoEnviados: periodoMudou ? [] : (anterior.diasExatoEnviados || []),
+        };
+      }
+    } else {
+      events.push({
+        id: Date.now(), titulo, data, hora, obs, repetirAteData, horaLembrete,
+        lembreteAntesEnviado: false, lembreteHojeEnviado: false,
+        diasAntesEnviados: [], diasHojeEnviados: [], diasExatoEnviados: [],
+      });
+    }
+    await saveEvents(events);
+    editingId = null;
+    clearForm();
+    setFormMode(false);
+    renderEvents(events);
+  } catch (e) {
+    errEl.textContent = 'Erro ao salvar o evento. Tente novamente.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    setFormMode(editingId !== null);
+  }
+}
+
+async function removeEvent(id) {
+  if (!confirm('Excluir este evento?')) return;
+  try {
+    const events = await fetchEvents();
+    const filtered = events.filter(e => e.id !== id);
+    await saveEvents(filtered);
+    renderEvents(filtered);
+  } catch (e) {
+    alert('Erro ao excluir o evento.');
+  }
+}
+</script>
+</body>
+</html>

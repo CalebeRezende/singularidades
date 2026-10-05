@@ -1,0 +1,45 @@
+name: Lembretes da agenda da Emanuelly (WhatsApp)
+
+on:
+  schedule:
+    # 19:35 UTC = 16:35 em Brasília -> aviso da véspera (evento de amanhã)
+    - cron: '35 19 * * *'
+    # 09:35 UTC = 06:35 em Brasília -> aviso do dia (evento de hoje)
+    - cron: '35 9 * * *'
+    # a cada 15min (offset 5) -> dispara lembretes de eventos recorrentes
+    # (ex: remédio) no horário exato escolhido
+    - cron: '5-59/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Modo do lembrete'
+        type: choice
+        options: ['antes', 'hoje', 'exato']
+        default: 'antes'
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Definir modo do lembrete
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "35 9 * * *" ]; then
+            echo "value=hoje" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "5-59/15 * * * *" ]; then
+            echo "value=exato" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=antes" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Enviar lembretes pendentes
+        env:
+          CALLMEBOT_PHONE_EMANUELLY: ${{ secrets.CALLMEBOT_PHONE_EMANUELLY }}
+          CALLMEBOT_APIKEY_EMANUELLY: ${{ secrets.CALLMEBOT_APIKEY_EMANUELLY }}
+          REMINDER_MODE: ${{ steps.mode.outputs.value }}
+        run: node scripts/send-reminders-emanuelly.mjs
