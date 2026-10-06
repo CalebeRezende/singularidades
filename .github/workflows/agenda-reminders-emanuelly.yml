@@ -6,13 +6,13 @@ on:
     - cron: '35 19 * * *'
     # 09:35 UTC = 06:35 em Brasília -> aviso do dia (evento de hoje)
     - cron: '35 9 * * *'
-    # a cada 15min (offset 5) -> dispara lembretes de eventos recorrentes
-    # (ex: remédio) no horário exato escolhido
-    - cron: '5-59/15 * * * *'
+    # OBS: os lembretes de horário exato (ex: remédio) saíram daqui — o
+    # GitHub Actions atrasa demais schedules frequentes. Ver webhook/worker.js
+    # (Cron Trigger do Cloudflare).
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Modo do lembrete'
+        description: 'Modo do lembrete (uso manual/depuração)'
         type: choice
         options: ['antes', 'hoje', 'exato']
         default: 'antes'
@@ -32,8 +32,6 @@ jobs:
             echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "35 9 * * *" ]; then
             echo "value=hoje" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "5-59/15 * * * *" ]; then
-            echo "value=exato" >> "$GITHUB_OUTPUT"
           else
             echo "value=antes" >> "$GITHUB_OUTPUT"
           fi

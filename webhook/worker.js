@@ -1,10 +1,14 @@
 // Cloudflare Worker: recebe mensagens do WhatsApp via webhook do Twilio e
 // cadastra eventos na agenda (mesmo bin do JSONBin.io usado por agenda.html).
+// Também dispara, via Cron Trigger, os lembretes de horário exato (remédio) —
+// bem mais pontual que o schedule do GitHub Actions.
 
 import { parseMensagem } from './parse.js';
+import { runExatoParaAgenda } from './reminders.js';
 
-const JSONBIN_BIN_ID = '6a7379b0da38895dfebe0814';
 const JSONBIN_API_KEY = '$2a$10$27rhUeaoctLDffTbCTjq7OjFhxqxihlBKPnf5UKFpy1FBs7BrHXW.';
+const JSONBIN_BIN_ID = '6a7379b0da38895dfebe0814';
+const JSONBIN_BIN_ID_EMANUELLY = '6ac39c41ac6210605a1572d0';
 const API_BASE = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 async function addEvento(evento) {
@@ -74,5 +78,18 @@ export default {
     const [y, m, d] = evento.data.split('-');
     const resumo = `✅ Evento salvo: ${evento.titulo}\n📅 ${d}/${m}${evento.hora ? ' às ' + evento.hora : ''}${evento.obs ? ' (' + evento.obs + ')' : ''}`;
     return twiml(resumo);
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(Promise.all([
+      runExatoParaAgenda({
+        nome: 'Calebe', binId: JSONBIN_BIN_ID, apiKey: JSONBIN_API_KEY,
+        phone: env.CALLMEBOT_PHONE, apikey: env.CALLMEBOT_APIKEY,
+      }),
+      runExatoParaAgenda({
+        nome: 'Emanuelly', binId: JSONBIN_BIN_ID_EMANUELLY, apiKey: JSONBIN_API_KEY,
+        phone: env.CALLMEBOT_PHONE_EMANUELLY, apikey: env.CALLMEBOT_APIKEY_EMANUELLY,
+      }),
+    ]));
   },
 };

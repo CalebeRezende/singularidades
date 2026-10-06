@@ -21,5 +21,13 @@ jobs:
           workingDirectory: webhook
           secrets: |
             ALLOWED_PHONE
+            CALLMEBOT_PHONE
+            CALLMEBOT_APIKEY
+            CALLMEBOT_PHONE_EMANUELLY
+            CALLMEBOT_APIKEY_EMANUELLY
         env:
           ALLOWED_PHONE: ${{ secrets.ALLOWED_PHONE }}
+          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+          CALLMEBOT_PHONE_EMANUELLY: ${{ secrets.CALLMEBOT_PHONE_EMANUELLY }}
+          CALLMEBOT_APIKEY_EMANUELLY: ${{ secrets.CALLMEBOT_APIKEY_EMANUELLY }}

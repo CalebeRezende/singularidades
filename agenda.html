@@ -145,7 +145,7 @@
       </button>
       <button class="btn hidden" id="btn-cancel-edit" onclick="cancelEdit()">Cancelar edição</button>
     </div>
-    <div class="error-msg" id="form-error">Preencha ao menos o título e a data.</div>
+    <div class="error-msg" id="form-error">Preencha ao menos o título e a data (e, se marcar "repetir", a data final e o horário do lembrete).</div>
   </div>
 
   <div class="section-label">Próximos eventos</div>
@@ -323,7 +323,7 @@ async function saveEvent() {
   const repetirAteData = repete ? document.getElementById('input-repete-ate').value : '';
   const horaLembrete = repete ? document.getElementById('input-hora-lembrete').value : '';
   const errEl = document.getElementById('form-error');
-  if (!titulo || !data || (repete && !repetirAteData)) { errEl.style.display = 'block'; return; }
+  if (!titulo || !data || (repete && (!repetirAteData || !horaLembrete))) { errEl.style.display = 'block'; return; }
   errEl.style.display = 'none';
 
   const btn = document.getElementById('btn-add');

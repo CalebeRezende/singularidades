@@ -1,3 +1,7 @@
 name = "singularidades-agenda-webhook"
 main = "worker.js"
 compatibility_date = "2026-08-01"
+
+[triggers]
+# a cada 5min -> checa lembretes de horário exato (ex: remédio)
+crons = ["*/5 * * * *"]
