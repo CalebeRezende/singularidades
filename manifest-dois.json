@@ -1,0 +1,13 @@
+{
+  "name": "agenda-dois — Singularidades",
+  "short_name": "Agenda",
+  "start_url": "agenda-dois.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#3C3489",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

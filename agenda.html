@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda — Singularidades</title>
+<link rel="manifest" href="manifest-calebe.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agenda">
+<meta name="theme-color" content="#3C3489">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -104,6 +109,18 @@
   <h1 class="page-title">Seus eventos</h1>
   <p class="page-sub">Cadastre um evento e você receberá um lembrete no WhatsApp um dia antes.</p>
 
+  <div class="card hidden" id="card-push">
+    <div class="field" style="margin-bottom: 10px;">
+      <label class="field-label">Notificações do app</label>
+      <p style="font-size: 13px; color: var(--muted); margin-top: 2px;" id="push-status-texto">
+        Ative pra receber os lembretes de remédio direto como notificação, sem depender do WhatsApp.
+      </p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-sm" id="btn-ativar-push" onclick="ativarPush()">Ativar notificações</button>
+    </div>
+  </div>
+
   <div class="card">
     <div class="field">
       <label class="field-label">Título do evento</label>
@@ -164,10 +181,84 @@
 const JSONBIN_BIN_ID  = '6a7379b0da38895dfebe0814';
 const JSONBIN_API_KEY = '$2a$10$27rhUeaoctLDffTbCTjq7OjFhxqxihlBKPnf5UKFpy1FBs7BrHXW.';
 const AGENDA_PASSWORD = 'agenda2026';
+const WORKER_BASE = 'https://singularidades-agenda-webhook.calebemrnos.workers.dev';
+const AGENDA_ID = 'calebe';
 // ============================================================
 
 const API_BASE = 'https://api.jsonbin.io/v3/b/' + JSONBIN_BIN_ID;
 const HEADERS  = { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY };
+
+function urlBase64ToUint8Array(base64) {
+  const padding = '='.repeat((4 - base64.length % 4) % 4);
+  const base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64Safe);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function checkPushSuportado() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+async function atualizarStatusPush() {
+  const card = document.getElementById('card-push');
+  if (!(await checkPushSuportado())) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+
+  const btn = document.getElementById('btn-ativar-push');
+  const texto = document.getElementById('push-status-texto');
+
+  if (Notification.permission === 'denied') {
+    texto.textContent = 'Notificações bloqueadas pro navegador. Ative nas configurações do site.';
+    btn.classList.add('hidden');
+    return;
+  }
+
+  const reg = await navigator.serviceWorker.register('sw.js');
+  const sub = await reg.pushManager.getSubscription();
+  if (sub) {
+    texto.textContent = '✅ Notificações ativadas neste aparelho.';
+    btn.classList.add('hidden');
+  } else {
+    texto.textContent = 'Ative pra receber os lembretes de remédio direto como notificação, sem depender do WhatsApp.';
+    btn.classList.remove('hidden');
+  }
+}
+
+async function ativarPush() {
+  const btn = document.getElementById('btn-ativar-push');
+  const texto = document.getElementById('push-status-texto');
+  btn.disabled = true;
+  try {
+    const permissao = await Notification.requestPermission();
+    if (permissao !== 'granted') {
+      texto.textContent = 'Permissão não concedida — não dá pra ativar sem autorizar notificações.';
+      return;
+    }
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+
+    const vapidRes = await fetch(WORKER_BASE + '/vapid-public-key');
+    const vapidPublicKey = await vapidRes.text();
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+
+    await fetch(WORKER_BASE + '/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agenda: AGENDA_ID, subscription: sub.toJSON() }),
+    });
+
+    texto.textContent = '✅ Notificações ativadas neste aparelho.';
+    btn.classList.add('hidden');
+  } catch (e) {
+    texto.textContent = 'Erro ao ativar notificações: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 function checkLogin() {
   const v = document.getElementById('agenda-pwd').value;
@@ -192,6 +283,7 @@ function showApp() {
   document.getElementById('screen-app').classList.remove('hidden');
   document.getElementById('btn-logout').classList.remove('hidden');
   loadEvents();
+  atualizarStatusPush();
 }
 
 if (sessionStorage.getItem('agenda-auth') === '1') showApp();

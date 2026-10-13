@@ -1,5 +1,10 @@
 // Lembretes de horário exato (ex: remédio), disparados pelo Cron Trigger
 // do Cloudflare Worker — muito mais pontual que o schedule do GitHub Actions.
+// Manda por dois canais independentes: WhatsApp (CallMeBot, se configurado)
+// e notificação push do app instalado (se houver inscrição). Basta um dos
+// dois funcionar pra marcar o lembrete como enviado no dia.
+
+import { sendPushToAll } from './push.js';
 
 const JANELA_MIN = 10; // cron roda a cada 5min; janela cobre 2 tentativas
 
@@ -33,18 +38,18 @@ function isActiveOn(e, dateStr) {
   return e.data === dateStr;
 }
 
-async function fetchEventos(binId, apiKey) {
+async function fetchRecord(binId, apiKey) {
   const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, { headers: { 'X-Master-Key': apiKey } });
   if (!res.ok) throw new Error(`Falha ao ler JSONBin ${binId}: ${res.status}`);
   const data = await res.json();
-  return (data.record && data.record.eventos) ? data.record.eventos : [];
+  return data.record || {};
 }
 
-async function saveEventos(binId, apiKey, eventos) {
+async function saveRecord(binId, apiKey, record) {
   const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Master-Key': apiKey },
-    body: JSON.stringify({ eventos }),
+    body: JSON.stringify(record),
   });
   if (!res.ok) throw new Error(`Falha ao salvar JSONBin ${binId}: ${res.status}`);
 }
@@ -62,15 +67,12 @@ async function sendWhatsapp(phone, apikey, text) {
   return body;
 }
 
-export async function runExatoParaAgenda({ nome, binId, apiKey, phone, apikey }) {
-  if (!phone || !apikey) {
-    console.log(`[${nome}] CallMeBot não configurado (secrets ausentes), pulando.`);
-    return;
-  }
-
+export async function runExatoParaAgenda({ nome, binId, apiKey, phone, apikey, vapidPublicKey, vapidPrivateKey }) {
   const todayStr = spDateString();
   const nowMin = spNowMinutes();
-  const eventos = await fetchEventos(binId, apiKey);
+  const record = await fetchRecord(binId, apiKey);
+  const eventos = record.eventos || [];
+  let subscriptions = record.pushSubscriptions || [];
 
   const due = eventos.filter(e => {
     if (!e.horaLembrete || !isActiveOn(e, todayStr)) return false;
@@ -84,15 +86,46 @@ export async function runExatoParaAgenda({ nome, binId, apiKey, phone, apikey })
     return;
   }
 
+  const enviados = [];
   for (const e of due) {
     const detalhe = e.hora ? ` (${e.hora})` : '';
     const obs = e.obs ? `\n${e.obs}` : '';
-    await sendWhatsapp(phone, apikey, `💊 Lembrete: ${e.titulo}${detalhe}${obs}`);
+    const texto = `💊 Lembrete: ${e.titulo}${detalhe}${obs}`;
+    let sucesso = false;
+
+    if (phone && apikey) {
+      try {
+        await sendWhatsapp(phone, apikey, texto);
+        sucesso = true;
+      } catch (err) {
+        console.log(`[${nome}] Falha no WhatsApp pra "${e.titulo}":`, err.message);
+      }
+    }
+
+    if (subscriptions.length && vapidPublicKey && vapidPrivateKey) {
+      try {
+        const resultado = await sendPushToAll(subscriptions, vapidPublicKey, vapidPrivateKey, {
+          title: '💊 Lembrete',
+          body: `${e.titulo}${detalhe}${obs}`,
+        });
+        subscriptions = resultado.subscriptions;
+        if (resultado.enviouAlgum) sucesso = true;
+      } catch (err) {
+        console.log(`[${nome}] Falha no push pra "${e.titulo}":`, err.message);
+      }
+    }
+
+    if (sucesso) enviados.push(e.id);
   }
 
-  const dueIds = new Set(due.map(e => e.id));
-  const updated = eventos.map(e => dueIds.has(e.id) ? { ...e, diasExatoEnviados: [...(e.diasExatoEnviados || []), todayStr] } : e);
-  await saveEventos(binId, apiKey, updated);
+  if (!enviados.length) {
+    console.log(`[${nome}] Nenhum lembrete conseguiu ser entregue agora (${todayStr}).`);
+    return;
+  }
 
-  console.log(`[${nome}] Lembrete enviado para ${due.length} evento(s) de ${todayStr}.`);
+  const enviadosSet = new Set(enviados);
+  const updatedEventos = eventos.map(e => enviadosSet.has(e.id) ? { ...e, diasExatoEnviados: [...(e.diasExatoEnviados || []), todayStr] } : e);
+  await saveRecord(binId, apiKey, { ...record, eventos: updatedEventos, pushSubscriptions: subscriptions });
+
+  console.log(`[${nome}] Lembrete enviado para ${enviados.length} evento(s) de ${todayStr}.`);
 }
