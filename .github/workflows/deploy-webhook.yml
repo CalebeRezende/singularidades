@@ -19,6 +19,12 @@ jobs:
       - name: Instalar dependências do Worker
         working-directory: webhook
         run: npm install
+      - name: (temp) Criar namespace KV
+        working-directory: webhook
+        run: npx wrangler kv namespace create AGENDA_KV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
