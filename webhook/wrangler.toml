@@ -5,3 +5,7 @@ compatibility_date = "2026-08-01"
 [triggers]
 # a cada 5min -> checa lembretes de horário exato (ex: remédio)
 crons = ["*/5 * * * *"]
+
+[[kv_namespaces]]
+binding = "AGENDA_KV"
+id = "bf6a73438dfd441eb8449d390d7b8736"

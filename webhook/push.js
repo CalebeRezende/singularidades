@@ -29,7 +29,7 @@ export async function sendPush(subscription, vapidPublicKey, vapidPrivateKey, { 
 }
 
 // Envia pra todas as inscrições de uma agenda, removendo as expiradas.
-// Retorna a lista de inscrições ainda válidas (pra regravar no JSONBin).
+// Retorna a lista de inscrições ainda válidas (pra regravar no KV).
 export async function sendPushToAll(subscriptions, vapidPublicKey, vapidPrivateKey, notif) {
   const ainda = [];
   let enviouAlgum = false;

@@ -5,9 +5,7 @@
 //   - "exato": a cada ~15min, dispara o lembrete único de eventos recorrentes
 //              (ex: remédio) no horário escolhido pelo usuário.
 
-const JSONBIN_BIN_ID = '6ac39c41ac6210605a1572d0';
-const JSONBIN_API_KEY = '$2a$10$27rhUeaoctLDffTbCTjq7OjFhxqxihlBKPnf5UKFpy1FBs7BrHXW.';
-const API_BASE = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+const API_BASE = 'https://singularidades-agenda-webhook.calebemrnos.workers.dev/agenda/emanuelly';
 
 const CALLMEBOT_PHONE = process.env.CALLMEBOT_PHONE_EMANUELLY;
 const CALLMEBOT_APIKEY = process.env.CALLMEBOT_APIKEY_EMANUELLY;
@@ -49,19 +47,19 @@ function toMinutes(hhmm) {
 }
 
 async function fetchEvents() {
-  const res = await fetch(`${API_BASE}/latest`, { headers: { 'X-Master-Key': JSONBIN_API_KEY } });
-  if (!res.ok) throw new Error(`Falha ao ler o JSONBin: ${res.status}`);
+  const res = await fetch(API_BASE);
+  if (!res.ok) throw new Error(`Falha ao ler a agenda: ${res.status}`);
   const data = await res.json();
-  return (data.record && data.record.eventos) ? data.record.eventos : [];
+  return data.eventos || [];
 }
 
 async function saveEvents(events) {
   const res = await fetch(API_BASE, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ eventos: events }),
   });
-  if (!res.ok) throw new Error(`Falha ao salvar o JSONBin: ${res.status}`);
+  if (!res.ok) throw new Error(`Falha ao salvar a agenda: ${res.status}`);
 }
 
 async function sendWhatsapp(text) {

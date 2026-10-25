@@ -38,20 +38,13 @@ function isActiveOn(e, dateStr) {
   return e.data === dateStr;
 }
 
-async function fetchRecord(binId, apiKey) {
-  const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, { headers: { 'X-Master-Key': apiKey } });
-  if (!res.ok) throw new Error(`Falha ao ler JSONBin ${binId}: ${res.status}`);
-  const data = await res.json();
-  return data.record || {};
+async function fetchRecord(kv, agendaId) {
+  const record = await kv.get(agendaId, { type: 'json' });
+  return record || {};
 }
 
-async function saveRecord(binId, apiKey, record) {
-  const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': apiKey },
-    body: JSON.stringify(record),
-  });
-  if (!res.ok) throw new Error(`Falha ao salvar JSONBin ${binId}: ${res.status}`);
+async function saveRecord(kv, agendaId, record) {
+  await kv.put(agendaId, JSON.stringify(record));
 }
 
 async function sendWhatsapp(phone, apikey, text) {
@@ -67,10 +60,10 @@ async function sendWhatsapp(phone, apikey, text) {
   return body;
 }
 
-export async function runExatoParaAgenda({ nome, binId, apiKey, phone, apikey, vapidPublicKey, vapidPrivateKey }) {
+export async function runExatoParaAgenda({ nome, kv, agendaId, phone, apikey, vapidPublicKey, vapidPrivateKey }) {
   const todayStr = spDateString();
   const nowMin = spNowMinutes();
-  const record = await fetchRecord(binId, apiKey);
+  const record = await fetchRecord(kv, agendaId);
   const eventos = record.eventos || [];
   let subscriptions = record.pushSubscriptions || [];
 
@@ -125,7 +118,7 @@ export async function runExatoParaAgenda({ nome, binId, apiKey, phone, apikey, v
 
   const enviadosSet = new Set(enviados);
   const updatedEventos = eventos.map(e => enviadosSet.has(e.id) ? { ...e, diasExatoEnviados: [...(e.diasExatoEnviados || []), todayStr] } : e);
-  await saveRecord(binId, apiKey, { ...record, eventos: updatedEventos, pushSubscriptions: subscriptions });
+  await saveRecord(kv, agendaId, { ...record, eventos: updatedEventos, pushSubscriptions: subscriptions });
 
   console.log(`[${nome}] Lembrete enviado para ${enviados.length} evento(s) de ${todayStr}.`);
 }

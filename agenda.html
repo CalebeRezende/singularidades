@@ -176,17 +176,14 @@
 
 <script>
 // ============================================================
-// CONFIGURAÇÃO — bin dedicado da agenda no JSONBin.io
+// CONFIGURAÇÃO — dados guardados no Cloudflare KV, via o Worker
 // ============================================================
-const JSONBIN_BIN_ID  = '6a7379b0da38895dfebe0814';
-const JSONBIN_API_KEY = '$2a$10$27rhUeaoctLDffTbCTjq7OjFhxqxihlBKPnf5UKFpy1FBs7BrHXW.';
 const AGENDA_PASSWORD = 'agenda2026';
 const WORKER_BASE = 'https://singularidades-agenda-webhook.calebemrnos.workers.dev';
 const AGENDA_ID = 'calebe';
 // ============================================================
 
-const API_BASE = 'https://api.jsonbin.io/v3/b/' + JSONBIN_BIN_ID;
-const HEADERS  = { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY };
+const API_BASE = WORKER_BASE + '/agenda/' + AGENDA_ID;
 
 function urlBase64ToUint8Array(base64) {
   const padding = '='.repeat((4 - base64.length % 4) % 4);
@@ -289,13 +286,13 @@ function showApp() {
 if (sessionStorage.getItem('agenda-auth') === '1') showApp();
 
 async function fetchEvents() {
-  const res = await fetch(API_BASE + '/latest', { headers: { 'X-Master-Key': JSONBIN_API_KEY } });
+  const res = await fetch(API_BASE);
   const data = await res.json();
-  return (data.record && data.record.eventos) ? data.record.eventos : [];
+  return data.eventos || [];
 }
 
 async function saveEvents(list) {
-  const res = await fetch(API_BASE, { method: 'PUT', headers: HEADERS, body: JSON.stringify({ eventos: list }) });
+  const res = await fetch(API_BASE, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventos: list }) });
   if (!res.ok) throw new Error('Erro ao salvar');
 }
 
