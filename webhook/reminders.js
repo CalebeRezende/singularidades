@@ -43,8 +43,13 @@ async function fetchRecord(kv, agendaId) {
   return record || {};
 }
 
-async function saveRecord(kv, agendaId, record) {
-  await kv.put(agendaId, JSON.stringify(record));
+// Reaplica as mudanças sobre a versão MAIS RECENTE do registro (não a que foi
+// lida no início da função, que pode ter ficado velha enquanto esperava o
+// WhatsApp/push responder) — evita apagar um evento criado/editado pela
+// interface enquanto o lembrete estava sendo enviado.
+async function saveRecord(kv, agendaId, updater) {
+  const atual = await fetchRecord(kv, agendaId);
+  await kv.put(agendaId, JSON.stringify(updater(atual)));
 }
 
 async function sendWhatsapp(phone, apikey, text) {
@@ -117,8 +122,11 @@ export async function runExatoParaAgenda({ nome, kv, agendaId, phone, apikey, va
   }
 
   const enviadosSet = new Set(enviados);
-  const updatedEventos = eventos.map(e => enviadosSet.has(e.id) ? { ...e, diasExatoEnviados: [...(e.diasExatoEnviados || []), todayStr] } : e);
-  await saveRecord(kv, agendaId, { ...record, eventos: updatedEventos, pushSubscriptions: subscriptions });
+  await saveRecord(kv, agendaId, atual => ({
+    ...atual,
+    eventos: (atual.eventos || []).map(e => enviadosSet.has(e.id) ? { ...e, diasExatoEnviados: [...(e.diasExatoEnviados || []), todayStr] } : e),
+    pushSubscriptions: subscriptions,
+  }));
 
   console.log(`[${nome}] Lembrete enviado para ${enviados.length} evento(s) de ${todayStr}.`);
 }
