@@ -196,6 +196,17 @@ async function checkPushSuportado() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
 
+// Manda a inscrição pro Worker salvar no KV. Lança erro se o servidor não
+// confirmar — o chamador decide o que fazer (mostrar erro ou só logar).
+async function registrarPush(sub) {
+  const res = await fetch(WORKER_BASE + '/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agenda: AGENDA_ID, subscription: sub.toJSON() }),
+  });
+  if (!res.ok) throw new Error('O servidor não confirmou o registro (' + res.status + ')');
+}
+
 async function atualizarStatusPush() {
   const card = document.getElementById('card-push');
   if (!(await checkPushSuportado())) { card.classList.add('hidden'); return; }
@@ -213,7 +224,15 @@ async function atualizarStatusPush() {
   const reg = await navigator.serviceWorker.register('sw.js');
   const sub = await reg.pushManager.getSubscription();
   if (sub) {
-    texto.textContent = '✅ Notificações ativadas neste aparelho.';
+    // Já tem inscrição neste aparelho — reenvia pro servidor (idempotente,
+    // dedup por endpoint) pra corrigir sozinho o caso em que o registro
+    // anterior nunca chegou a salvar no KV e o app nem percebeu.
+    try {
+      await registrarPush(sub);
+      texto.textContent = '✅ Notificações ativadas neste aparelho.';
+    } catch (e) {
+      texto.textContent = '⚠️ Notificação ativada neste aparelho, mas o servidor não confirmou o registro agora. Tente de novo em instantes.';
+    }
     btn.classList.add('hidden');
   } else {
     texto.textContent = 'Ative pra receber os lembretes de remédio direto como notificação, sem depender do WhatsApp.';
@@ -242,11 +261,7 @@ async function ativarPush() {
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
     });
 
-    await fetch(WORKER_BASE + '/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agenda: AGENDA_ID, subscription: sub.toJSON() }),
-    });
+    await registrarPush(sub);
 
     texto.textContent = '✅ Notificações ativadas neste aparelho.';
     btn.classList.add('hidden');
