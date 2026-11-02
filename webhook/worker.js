@@ -8,6 +8,7 @@
 
 import { parseMensagem } from './parse.js';
 import { runExatoParaAgenda } from './reminders.js';
+import { sendPush } from './push.js';
 
 // Chave pública VAPID — não é segredo, o navegador precisa dela pra se inscrever.
 const VAPID_PUBLIC_KEY = 'BIwlkPUi5tuvTTeT9rDj1d5QJNVw6smS82AC93DFhvp6B3tzelObmzzRAkXsr2u9PTfvIP2jPrlDgtY6hFPC_qc';
@@ -100,9 +101,46 @@ function twiml(mensagem) {
   return new Response(xml, { headers: { 'Content-Type': 'text/xml; charset=utf-8' } });
 }
 
+// Endpoint temporário de diagnóstico — testa WhatsApp e push direto, sem
+// passar pelo Cron Trigger, e devolve a resposta crua de cada canal.
+// Remover depois de diagnosticar por que o lembrete não chega.
+async function handleDebugEmanuelly(env) {
+  const resultado = { whatsapp: null, push: [] };
+
+  if (env.CALLMEBOT_PHONE_EMANUELLY && env.CALLMEBOT_APIKEY_EMANUELLY) {
+    try {
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(env.CALLMEBOT_PHONE_EMANUELLY)}&text=${encodeURIComponent('🔧 Teste de diagnóstico Singularidades')}&apikey=${encodeURIComponent(env.CALLMEBOT_APIKEY_EMANUELLY)}`;
+      const res = await fetch(url);
+      const body = await res.text();
+      resultado.whatsapp = { status: res.status, body: body.slice(0, 500) };
+    } catch (e) {
+      resultado.whatsapp = { erro: e.message };
+    }
+  } else {
+    resultado.whatsapp = { erro: 'CALLMEBOT_PHONE_EMANUELLY ou CALLMEBOT_APIKEY_EMANUELLY não configurados' };
+  }
+
+  const record = await fetchRecord(env.AGENDA_KV, 'emanuelly');
+  const subs = record.pushSubscriptions || [];
+  for (const sub of subs) {
+    try {
+      const r = await sendPush(sub, VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY, { title: '🔧 Teste de diagnóstico', body: 'Singularidades' });
+      resultado.push.push({ endpoint: sub.endpoint.slice(-20), ...r });
+    } catch (e) {
+      resultado.push.push({ endpoint: sub.endpoint.slice(-20), erro: e.message });
+    }
+  }
+
+  return new Response(JSON.stringify(resultado, null, 2), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (url.pathname === '/debug-teste-8821') {
+      return await handleDebugEmanuelly(env);
+    }
 
     if (url.pathname === '/vapid-public-key') {
       return new Response(VAPID_PUBLIC_KEY, { status: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' } });
