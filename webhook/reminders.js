@@ -58,7 +58,12 @@ async function sendWhatsapp(phone, apikey, text) {
   const body = await res.text();
   if (!res.ok) throw new Error(`Falha ao enviar WhatsApp: ${res.status} - ${body}`);
   // CallMeBot às vezes responde 200 mesmo sem entregar de verdade (bot pausado,
-  // número não autorizado etc). Só considera sucesso se o corpo confirmar o envio.
+  // cota de mensagens zerada, número não autorizado etc). "Message not sent"
+  // batia como sucesso no teste antigo porque contém a palavra "sent" — por
+  // isso as frases de recusa são checadas ANTES das de confirmação.
+  if (/not sent|too many requests|paused|messages left/i.test(body)) {
+    throw new Error(`CallMeBot recusou o envio: ${body.slice(0, 200)}`);
+  }
   if (!/queued|sent/i.test(body)) {
     throw new Error(`CallMeBot não confirmou o envio: ${body.slice(0, 200)}`);
   }
