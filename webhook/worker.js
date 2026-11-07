@@ -104,12 +104,14 @@ function twiml(mensagem) {
 // Endpoint temporário de diagnóstico — testa WhatsApp e push direto, sem
 // passar pelo Cron Trigger, e devolve a resposta crua de cada canal.
 // Remover depois de diagnosticar por que o lembrete não chega.
-async function handleDebugEmanuelly(env) {
-  const resultado = { whatsapp: null, push: [] };
+async function handleDebug(env, agendaId) {
+  const phone = agendaId === 'calebe' ? env.CALLMEBOT_PHONE : env.CALLMEBOT_PHONE_EMANUELLY;
+  const apikey = agendaId === 'calebe' ? env.CALLMEBOT_APIKEY : env.CALLMEBOT_APIKEY_EMANUELLY;
+  const resultado = { agenda: agendaId, whatsapp: null, push: [] };
 
-  if (env.CALLMEBOT_PHONE_EMANUELLY && env.CALLMEBOT_APIKEY_EMANUELLY) {
+  if (phone && apikey) {
     try {
-      const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(env.CALLMEBOT_PHONE_EMANUELLY)}&text=${encodeURIComponent('🔧 Teste de diagnóstico Singularidades')}&apikey=${encodeURIComponent(env.CALLMEBOT_APIKEY_EMANUELLY)}`;
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent('🔧 Teste de diagnóstico Singularidades')}&apikey=${encodeURIComponent(apikey)}`;
       const res = await fetch(url);
       const body = await res.text();
       resultado.whatsapp = { status: res.status, body: body.slice(0, 500) };
@@ -117,10 +119,10 @@ async function handleDebugEmanuelly(env) {
       resultado.whatsapp = { erro: e.message };
     }
   } else {
-    resultado.whatsapp = { erro: 'CALLMEBOT_PHONE_EMANUELLY ou CALLMEBOT_APIKEY_EMANUELLY não configurados' };
+    resultado.whatsapp = { erro: 'CALLMEBOT_PHONE/CALLMEBOT_APIKEY não configurados pra essa agenda' };
   }
 
-  const record = await fetchRecord(env.AGENDA_KV, 'emanuelly');
+  const record = await fetchRecord(env.AGENDA_KV, agendaId);
   const subs = record.pushSubscriptions || [];
   for (const sub of subs) {
     try {
@@ -139,7 +141,8 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/debug-teste-8821') {
-      return await handleDebugEmanuelly(env);
+      const agendaId = AGENDAS_VALIDAS.has(url.searchParams.get('agenda')) ? url.searchParams.get('agenda') : 'emanuelly';
+      return await handleDebug(env, agendaId);
     }
 
     if (url.pathname === '/vapid-public-key') {
