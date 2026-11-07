@@ -19,13 +19,13 @@ export async function sendPush(subscription, vapidPublicKey, vapidPrivateKey, { 
   const res = await fetch(subscription.endpoint, payload);
 
   if (res.status === 404 || res.status === 410) {
-    return { ok: false, expired: true };
+    return { ok: false, expired: true, status: res.status };
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`Falha ao enviar push: ${res.status} - ${text.slice(0, 200)}`);
   }
-  return { ok: true, expired: false };
+  return { ok: true, expired: false, status: res.status };
 }
 
 // Envia pra todas as inscrições de uma agenda, removendo as expiradas.
